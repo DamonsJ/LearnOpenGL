@@ -1,4 +1,5 @@
 #include "shader.hpp"
+#include <vector>
 #include <assert.h>
 namespace DGL {
 
