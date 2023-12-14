@@ -27,6 +27,7 @@ public:
   }
 
 public:
+  void check_shader_error(GLuint shader);
   void build_vertex_shader(const char *vertex_shader_content) ;
   void build_fragment_shader(const char *fragment_shader_content);
   void build_vertex_shader_file(const char *vertex_shader_file) ;
