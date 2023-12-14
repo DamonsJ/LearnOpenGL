@@ -46,8 +46,24 @@ if(NOT glad_POPULATED)
     glad_add_library(glad_gl_core_33 REPRODUCIBLE API gl:core=3.3)
 endif()
 
-add_executable(${PROJECT_NAME}
-	src/simple.cpp
-	)
+link_libraries(glfw linmath glad_gl_core_33)
 
-target_link_libraries(${PROJECT_NAME} glfw linmath glad_gl_core_33)
+add_subdirectory(src)
+
+function(install_all_targets DIR)
+    get_property(TGTS DIRECTORY "${DIR}" PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(TGT IN LISTS TGTS)
+        message(STATUS "Target: ${TGT}")
+        install(TARGETS ${TGT}
+                RUNTIME DESTINATION bin
+                LIBRARY DESTINATION lib
+                ARCHIVE DESTINATION lib)
+    endforeach()
+
+    get_property(SUBDIRS DIRECTORY "${DIR}" PROPERTY SUBDIRECTORIES)
+    foreach(SUBDIR IN LISTS SUBDIRS)
+    install_all_targets("${SUBDIR}")
+    endforeach()
+endfunction()
+
+install_all_targets(./src)
