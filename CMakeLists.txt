@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.20)
 include(FetchContent)
 project(LearnOpenGL)
 
+set(CMAKE_CXX_STANDARD 17)
+
 FetchContent_Declare(
         glfw
         GIT_REPOSITORY https://github.com/glfw/glfw
@@ -46,8 +48,21 @@ if(NOT glad_POPULATED)
     glad_add_library(glad_gl_core_33 REPRODUCIBLE API gl:core=3.3)
 endif()
 
-link_libraries(glfw linmath glad_gl_core_33)
 
+FetchContent_Declare(
+        glm
+        GIT_REPOSITORY https://github.com/g-truc/glm.git
+)
+
+FetchContent_GetProperties(glm)
+if(NOT glm_POPULATED)
+    FetchContent_Populate(glm)
+    add_subdirectory(${glm_SOURCE_DIR} ${glm_BINARY_DIR})
+endif()
+
+link_libraries(glfw linmath glad_gl_core_33 glm)
+add_subdirectory(common)
+link_libraries(common)
 add_subdirectory(src)
 
 function(install_all_targets DIR)
