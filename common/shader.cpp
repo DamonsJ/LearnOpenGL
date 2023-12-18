@@ -22,12 +22,14 @@ void GLShader::check_shader_error(GLuint shader) {
 void GLShader::build_vertex_shader(const char *vertex_shader_content) {
   glShaderSource(vertex_shader, 1, &vertex_shader_content, NULL);
   glCompileShader(vertex_shader);
+  printf("====> vertex :\n");
   check_shader_error(vertex_shader);
 }
 
 void GLShader::build_fragment_shader(const char *fragment_shader_content) {
   glShaderSource(fragment_shader, 1, &fragment_shader_content, NULL);
   glCompileShader(fragment_shader);
+  printf("====> fragment :\n");
   check_shader_error(fragment_shader);
 }
 
