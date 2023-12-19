@@ -42,8 +42,7 @@ void mouse_callback(GLFWwindow *window, double x_pos, double y_pos) {
   }
 
   float x_offset = x_pos - last_x;
-  float y_offset =
-      last_y - y_pos; // reversed since y-coordinates go from bottom to top
+  float y_offset = last_y - y_pos; // reversed since y-coordinates go from bottom to top
 
   last_x = x_pos;
   last_y = y_pos;
@@ -221,6 +220,7 @@ int main(void) {
   DGL::Camera camera;
   camera.setScreenDimensions(window_width, window_height);
   camera.setCameraDistance(max_length * 2.0f);
+  camera.updateNearFar(0.1f,max_length * 4.0f);
   // Set up input sensitivities
   float mouse_sensitivity = config.GetFloat("Input", "MouseSensitivity", 0.3);
   float zoom_sensitivity = config.GetFloat("Input", "ZoomSensitivity", 0.5);

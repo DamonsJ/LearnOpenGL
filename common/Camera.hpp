@@ -30,7 +30,9 @@ class Camera
     // Screen
     unsigned int m_screen_width = 800;
     unsigned int m_screen_height = 640;
-
+    //
+    float near = 0.1f;
+    float far = 100.0f;
     void updateCameraVectors(void);
 
 public:
@@ -43,6 +45,7 @@ public:
     void setScreenDimensions(unsigned int width, unsigned int height);
     void setSensitivities(float mouse_sensitivity, float zoom_sensitivity, float fov_sensitivity);
 
+    void updateNearFar(float n, float f);
     glm::mat4 getViewMatrix(void);
     glm::mat4 getProjMatrix(void);
     glm::vec3 getPosition(void) { return m_position_coords; }
