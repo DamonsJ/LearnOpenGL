@@ -48,7 +48,7 @@ public:
     void updateNearFar(float n, float f);
     glm::mat4 getViewMatrix(void);
     glm::mat4 getProjMatrix(void);
-    glm::vec3 getPosition(void) { return m_position_coords; }
+    const glm::vec3& getPosition(void) const{ return m_position_coords; }
 };
 
 }

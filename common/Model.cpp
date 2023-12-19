@@ -16,6 +16,19 @@ Model::Model(const std::string &model_name) {
   zmax = -1e10;
   load(model_name);
 }
+Model::~Model()
+{
+  unsigned int vao, vbo, ibo;
+  if (vao != 0) {
+    glDeleteVertexArrays(1, &vao);
+  }
+  if (vbo != 0) {
+    glDeleteBuffers(1, &vbo);
+  }
+  if (ibo != 0) {
+    glDeleteBuffers(1, &ibo);
+  }
+}
 
 void Model::initGL() {
   glGenVertexArrays(1, &vao);

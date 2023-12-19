@@ -19,7 +19,7 @@ class Model {
 public:
   Model(const std::string& model_name);
   // rule of five
-  ~Model() = default; // destructor (virtual if Model is meant to be a base class)
+  ~Model(); // destructor (virtual if Model is meant to be a base class)
   Model(const Model &) = default;            // copy constructor
   Model &operator=(const Model &) = default; // copy assignment
   Model(Model &&) noexcept = default; // move constructor
