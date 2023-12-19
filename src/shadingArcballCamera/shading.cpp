@@ -60,6 +60,8 @@ void mouse_button_callback(GLFWwindow *window, int button, int action,
     glfwGetCursorPos(window, &startXPos, &startYPos);
     // convert to NDC, then assign to startPos.
     camera->rotate_start(startXPos, startYPos);
+  } else {
+    camera->rotate_end();
   }
 }
 

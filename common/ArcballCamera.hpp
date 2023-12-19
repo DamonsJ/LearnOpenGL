@@ -29,6 +29,7 @@ public:
 public:
   void rotate_start(float xstart, float ystart);
   void rotate(float xpos, float ypos);
+  void rotate_end();
 
   void zoom(double y_offset);
   void pan(float x_offset, float y_offset);
@@ -58,6 +59,8 @@ private:
   glm::vec3 m_eye;
   glm::vec3 m_center;
   glm::vec3 m_up;
+
+  glm::vec3 m_last_eye;
 
   float xpos_start;
   float ypos_start;

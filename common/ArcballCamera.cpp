@@ -7,6 +7,7 @@ ArcballCamera::ArcballCamera(const glm::vec3 &eye, const glm::vec3 &center,
   m_eye = eye;
   m_center = center;
   m_up = up;
+  m_last_eye = m_eye;
 }
 
 void ArcballCamera::setScreenDimensions(unsigned int width,
@@ -51,13 +52,16 @@ void ArcballCamera::pan(float x_offset, float y_offset) {
   glm::vec3 r = glm::normalize(glm::cross(viewdir, m_up));
   m_center = m_center - r * x_offset * l - m_up * y_offset * l;
 }
-
+void ArcballCamera::rotate_end()
+{
+  m_last_eye = m_eye;
+}
 void ArcballCamera::rotate(float xpos, float ypos) {
-  xpos = (xpos - posx) * m_mouse_sensitivity + posx;
-  ypos = (ypos - posy) * m_mouse_sensitivity + posy;
+  // xpos = (xpos - posx) * m_mouse_sensitivity + posx;
+  // ypos = (ypos - posy) * m_mouse_sensitivity + posy;
 
   xpos = 1.0f * xpos / m_screen_width * 2 - 1.0;
-  ypos = (1.0f * ypos / m_screen_width * 2 - 1.0);
+  ypos = -(1.0f * ypos / m_screen_width * 2 - 1.0);
   float zpos = 0.0f;
   float len = xpos * xpos + ypos * ypos;
   if (len <= 1.0f)
@@ -71,13 +75,15 @@ void ArcballCamera::rotate(float xpos, float ypos) {
     cosv = 1.0f;
   float theta = acos(cosv);
 
-  glm::vec3 viewdir = m_eye - m_center;
+  glm::vec3 viewdir = m_last_eye - m_center;
   glm::mat4 rot_mat = glm::rotate(glm::mat4(1.0f), theta, axis);
   m_eye = glm::mat3(rot_mat) * viewdir + m_center;
 
   viewdir = glm::normalize(viewdir) * glm::vec3(-1.0);
   glm::vec3 right_vec = glm::normalize(glm::cross(viewdir, m_up));
   m_up = glm::normalize(glm::cross(right_vec, viewdir));
+  printf(" axis : %.3f %.3f %.3f\n", axis[0],axis[1],axis[2]);
+  printf(" m_up : %.3f %.3f %.3f\n", m_up[0],m_up[1],m_up[2]);
 }
 
 void ArcballCamera::rotate_start(float xstart, float ystart) {
@@ -85,7 +91,7 @@ void ArcballCamera::rotate_start(float xstart, float ystart) {
   posy = ystart;
 
   xpos_start = 1.0f * posx / m_screen_width * 2 - 1.0;
-  ypos_start = (1.0f * posy / m_screen_width * 2 - 1.0);
+  ypos_start = -(1.0f * posy / m_screen_width * 2 - 1.0);
 
   zpos_start = 0.0f;
   float len = xpos_start * xpos_start + ypos_start * ypos_start;
