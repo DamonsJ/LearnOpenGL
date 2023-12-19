@@ -60,7 +60,20 @@ if(NOT glm_POPULATED)
     add_subdirectory(${glm_SOURCE_DIR} ${glm_BINARY_DIR})
 endif()
 
-link_libraries(glfw linmath glad_gl_core_33 glm)
+
+FetchContent_Declare(
+        assimp
+        GIT_REPOSITORY https://github.com/assimp/assimp.git
+)
+
+FetchContent_GetProperties(assimp)
+if(NOT assimp_POPULATED)
+    FetchContent_Populate(assimp)
+    add_subdirectory(${assimp_SOURCE_DIR} ${assimp_BINARY_DIR})
+endif()
+
+
+link_libraries(glfw linmath glad_gl_core_33 glm assimp)
 add_subdirectory(common)
 link_libraries(common)
 add_subdirectory(src)

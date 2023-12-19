@@ -14,29 +14,38 @@ namespace DGL {
 
 class Camera
 {
+ private:
+    // Camera view state attributes
+    float m_fov = 45.0f;
+    float m_distance = 10.0;
+    float m_position_xangle = 90.0;
+    float m_position_yangle = 30.0;
+    glm::vec3 m_position_coords = glm::vec3(0.0, 0.0, 0.0);
+    glm::vec3 m_up_vec = glm::vec3(0.0, 1.0, 0.0);
+    const glm::vec3 m_WORLD_UP_VEC = glm::vec3(0.0, 1.0, 0.0);
+    // Sensitivities
+    float m_mouse_sensitivity = 0.3;
+    float m_zoom_sensitivity = 0.5;
+    float m_fov_sensitivity = 0.4;
+    // Screen
+    unsigned int m_screen_width = 800;
+    unsigned int m_screen_height = 640;
+
+    void updateCameraVectors(void);
+
 public:
-     Camera(){}
-     Camera(const glm::vec3 &e,const glm::vec3 &c,const glm::vec3 &u):veye(e),vcenter(c),vup(u){}
-public:
-     void eye(float x, float y, float z);
-     void eye(const glm::vec3 &e);
-     void center(float x, float y, float z);
-     void center(const glm::vec3 &c);
-     void up(float x, float y, float z);
-     void up(const glm::vec3 &u);
+    Camera(void);
+    void setCameraDistance(float d);
+    void orbit(float x_offset, float y_offset);
+    void zoom(double y_offset);
+    void widenFov();
+    void narrowFov();
+    void setScreenDimensions(unsigned int width, unsigned int height);
+    void setSensitivities(float mouse_sensitivity, float zoom_sensitivity, float fov_sensitivity);
 
-     void build(const glm::vec3 &e,const glm::vec3 &c,const glm::vec3 &u);
-     glm::mat4 view_matrix();
-
-     const glm::vec3& get_eye() const { return veye;}
-     const glm::vec3& get_center() const { return vcenter;}
-     const glm::vec3& get_up() const { return vup;}
-
-private:
-     glm::vec3 vcenter;
-     glm::vec3 veye;
-     glm::vec3 vup;
-
+    glm::mat4 getViewMatrix(void);
+    glm::mat4 getProjMatrix(void);
+    glm::vec3 getPosition(void) { return m_position_coords; }
 };
 
 }

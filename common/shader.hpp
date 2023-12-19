@@ -42,7 +42,7 @@ public:
     glLinkProgram(program);
   }
 
-  void use() { glUseProgram(program); }
+  void use() {glUseProgram(program); }
 
   GLint getUniformLocation(const char *uniform) const {
     return glGetUniformLocation(program, uniform);
@@ -156,6 +156,7 @@ public:
     } else {
       shader.build_fragment_shader(shader_fragment);
     }
+    shader.link();
     return shader;
   }
   std::shared_ptr<GLShader> buildShared() const {
@@ -171,6 +172,7 @@ public:
     } else {
       shader->build_fragment_shader(shader_fragment);
     }
+    shader->link();
     return shader;
   }
 

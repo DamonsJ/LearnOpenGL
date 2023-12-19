@@ -3,23 +3,19 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#include "Camera.hpp"
+#include "INIReader.hpp"
+#include "Model.hpp"
 #include "linmath.h"
 #include "shader.hpp"
-#include "Camera.hpp"
-#include "stl_reader.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/string_cast.hpp>
 
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
-static struct {
-  float x, y, z;
-  float r, g, b;
-} vertices[603];
 
 static void error_callback(int error, const char *description) {
   fprintf(stderr, "Error: %s\n", description);
@@ -31,18 +27,105 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action,
     glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
-int main(void) {
-  std::vector<float> coords, normals;
-  std::vector<unsigned int> tris, solids;
-  stl_reader::ReadStlFile ("./shadingshaders/teapot.stl", coords, normals, tris, solids);
-  const size_t numTris = tris.size() / 3;
+float last_x, last_y;
+bool first_mouse = true;
 
-  GLFWwindow *window;
-  GLuint vertex_buffer, vertex_shader, fragment_shader, program;
-  GLint mvp_location, vpos_location, vcol_location;
+void mouse_callback(GLFWwindow *window, double x_pos, double y_pos) {
+  DGL::Camera *camera =
+      static_cast<DGL::Camera *>(glfwGetWindowUserPointer(window));
+  if (camera == nullptr)
+    return;
+  if (first_mouse) {
+    last_x = x_pos;
+    last_y = y_pos;
+    first_mouse = false;
+  }
+
+  float x_offset = x_pos - last_x;
+  float y_offset =
+      last_y - y_pos; // reversed since y-coordinates go from bottom to top
+
+  last_x = x_pos;
+  last_y = y_pos;
+
+  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+    camera->orbit(x_offset, y_offset);
+  }
+}
+
+void scroll_callback(GLFWwindow *window, double x_offset, double y_offset) {
+  DGL::Camera *camera =
+      static_cast<DGL::Camera *>(glfwGetWindowUserPointer(window));
+  if (camera == nullptr)
+    return;
+  camera->zoom(y_offset);
+}
+
+void process_keypresses(GLFWwindow *window, float delta_time) {
+  DGL::Camera *camera =
+      static_cast<DGL::Camera *>(glfwGetWindowUserPointer(window));
+  if (camera == nullptr)
+    return;
+  if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+    glfwSetWindowShouldClose(window, true);
+  }
+
+  if (glfwGetKey(window, GLFW_KEY_LEFT_BRACKET) == GLFW_PRESS) {
+    camera->narrowFov();
+  }
+  if (glfwGetKey(window, GLFW_KEY_RIGHT_BRACKET) == GLFW_PRESS) {
+    camera->widenFov();
+  }
+}
+
+void setMaterial(const INIReader &config, const DGL::GLShader &shader) {
+  // Set fragment shader uniforms
+  // Material lighting properties
+  glm::vec3 material_ambient =
+      glm::vec3(config.GetFloat("Material", "AmbientColorR", 1.0),
+                config.GetFloat("Material", "AmbientColorG", 1.0),
+                config.GetFloat("Material", "AmbientColorB", 1.0));
+  shader.setVec3("material.ambient", material_ambient);
+  glm::vec3 material_diffuse =
+      glm::vec3(config.GetFloat("Material", "DiffuseColorR", 1.0),
+                config.GetFloat("Material", "DiffuseColorG", 1.0),
+                config.GetFloat("Material", "DiffuseColorB", 1.0));
+  shader.setVec3("material.diffuse", material_diffuse);
+  glm::vec3 material_specular =
+      glm::vec3(config.GetFloat("Material", "SpecularColorR", 1.0),
+                config.GetFloat("Material", "SpecularColorG", 1.0),
+                config.GetFloat("Material", "SpecularColorB", 1.0));
+  shader.setVec3("material.specular", material_specular);
+  float material_shininess = config.GetFloat("Material", "Shininess", 32.0);
+  shader.setFloat("material.shininess", material_shininess);
+
+  // Light lighting properties
+  glm::vec3 light_ambient =
+      glm::vec3(config.GetFloat("Light", "AmbientColorR", 1.0),
+                config.GetFloat("Light", "AmbientColorG", 1.0),
+                config.GetFloat("Light", "AmbientColorB", 1.0));
+  shader.setVec3("light.ambient", light_ambient);
+  glm::vec3 light_diffuse =
+      glm::vec3(config.GetFloat("Light", "DiffuseColorR", 1.0),
+                config.GetFloat("Light", "DiffuseColorG", 1.0),
+                config.GetFloat("Light", "DiffuseColorB", 1.0));
+  shader.setVec3("light.diffuse", light_diffuse);
+  glm::vec3 light_specular =
+      glm::vec3(config.GetFloat("Light", "SpecularColorR", 1.0),
+                config.GetFloat("Light", "SpecularColorG", 1.0),
+                config.GetFloat("Light", "SpecularColorB", 1.0));
+  shader.setVec3("light.specular", light_specular);
+}
+
+int main(void) {
 
   glfwSetErrorCallback(error_callback);
-
+  INIReader config("./shadingshaders/config.ini");
+  int e = config.ParseError();
+  if (e != 0) {
+    printf(" load config error : %d \n", e);
+    exit(EXIT_FAILURE);
+  }
   if (!glfwInit())
     exit(EXIT_FAILURE);
 
@@ -54,251 +137,124 @@ int main(void) {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-  window = glfwCreateWindow(1000, 750, "base floor", NULL, NULL);
+  // Open fullscreen or windowed context based on config.ini
+  GLFWmonitor *monitor;
+  int window_width, window_height = 0;
+  if (config.GetBoolean("Screen", "Fullscreen", true)) {
+    monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    window_width = mode->width;
+    window_height = mode->height;
+  } else {
+    monitor = NULL;
+    window_width = config.GetInteger("Screen", "ScreenWidth", 800);
+    window_height = config.GetInteger("Screen", "ScreenHeight", 640);
+  }
+
+  GLFWwindow *window =
+      glfwCreateWindow(window_width, window_height, "shading", monitor, NULL);
   if (!window) {
     glfwTerminate();
     exit(EXIT_FAILURE);
   }
 
-  glfwSetKeyCallback(window, key_callback);
-
   glfwMakeContextCurrent(window);
   gladLoadGL(glfwGetProcAddress);
+
+  // Set input callbacks
+  glfwSetCursorPosCallback(window, mouse_callback);
+  glfwSetScrollCallback(window, scroll_callback);
+  glfwSetKeyCallback(window, key_callback);
+
   glfwSwapInterval(1);
 
-  // NOTE: OpenGL error checks have been omitted for brevity
-  int v = 0;
-  int r = 0;
-  float floor_width = 1000, floor_height = 750;
-  // floor
-  for (float y = 0; y < floor_height; y += 75) {
-    r = (int((y + 1) / 75)) % 2 == 0 ? 0 : 1;
-    for (float x = 0; x < floor_width; x += 100) {
-      float c = (r++) % 2 == 0 ? 0 : 1;
-      vertices[v].x = x - 500;
-      vertices[v].y = 0;
-      vertices[v].z = y - 375;
-      vertices[v].r = c;
-      vertices[v].g = c;
-      vertices[v].b = c;
-      v++;
+  glEnable(GL_DEPTH_TEST);  // Depth testing
+  glEnable(GL_CULL_FACE);   // Rear face culling
+  glEnable(GL_MULTISAMPLE); // MSAA
 
-      vertices[v].x = x - 500;
-      vertices[v].y = 0;
-      vertices[v].z = (y + 75) - 375;
-      vertices[v].r = c;
-      vertices[v].g = c;
-      vertices[v].b = c;
-      v++;
-
-      vertices[v].x = (x + 100) - 500;
-      vertices[v].y = 0;
-      vertices[v].z = (y + 75) - 375;
-      vertices[v].r = c;
-      vertices[v].g = c;
-      vertices[v].b = c;
-      v++;
-
-      vertices[v].x = x - 500;
-      vertices[v].y = 0;
-      vertices[v].z = y - 375;
-      vertices[v].r = c;
-      vertices[v].g = c;
-      vertices[v].b = c;
-      v++;
-
-      vertices[v].x = (x + 100) - 500;
-      vertices[v].y = 0;
-      vertices[v].z = (y + 75) - 375;
-      vertices[v].r = c;
-      vertices[v].g = c;
-      vertices[v].b = c;
-      v++;
-
-      vertices[v].x = (x + 100) - 500;
-      vertices[v].y = 0;
-      vertices[v].z = y - 375;
-      vertices[v].r = c;
-      vertices[v].g = c;
-      vertices[v].b = c;
-      v++;
-    }
-  }
-  // center
-  {
-      vertices[v].x = -25;
-      vertices[v].y = 0;
-      vertices[v].z = 0;
-      vertices[v].r = 0;
-      vertices[v].g = 1;
-      vertices[v].b = 0;
-      v++;
-
-      vertices[v].x = 25;
-      vertices[v].y = 0;
-      vertices[v].z = 0;
-      vertices[v].r = 0;
-      vertices[v].g = 1;
-      vertices[v].b = 0;
-      v++;
-
-      vertices[v].x = 0;
-      vertices[v].y = 0;
-      vertices[v].z = -50;
-      vertices[v].r = 0;
-      vertices[v].g = 1;
-      vertices[v].b = 0;
-      v++;
+  if (config.GetBoolean("Graphics", "Wireframe", false)) {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
   }
 
   auto shader = DGL::GLShaderBuilder()
-                    .vertex_shader_file("./shadingshaders/vertex.vert")
-                    .fragment_shader_file("./shadingshaders/fragment.frag")
+                    .vertex_shader_file("./shadingshaders/shading.vert")
+                    .fragment_shader_file("./shadingshaders/shading.frag")
                     .buildShared();
-  shader->link();
   shader->use();
-  mvp_location = shader->getUniformLocation("MVP");
-  vpos_location = 1;
-  vcol_location = 0;
 
-  GLuint VAO;
-  glGenVertexArrays(1, &VAO);
-  glBindVertexArray(VAO);
-  glGenBuffers(1, &vertex_buffer);
-  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  std::string model_path = config.Get("Model", "Path", "");
+  printf(" loading model : %s\n", model_path.c_str());
+  DGL::Model showmodel(model_path);
+  float tx = 0.0f, ty = 0.0f, tz = 0.0f;
+  showmodel.length(tx, ty, tz);
+  printf(" length x : %.3f y : %.3f z : %.3f \n", tx, ty, tz);
+  float max_length = std::max(tx, std::max(ty, tz));
+  tx = 0.0f, ty = 0.0f, tz = 0.0f;
+  showmodel.center(tx, ty, tz);
+  printf(" center x : %.3f y : %.3f z : %.3f \n", tx, ty, tz);
 
-  glVertexAttribPointer(vpos_location, 3, GL_FLOAT, GL_FALSE,
-                        sizeof(vertices[0]), (void *)0);
+  // Build model matrix
+  glm::mat4 model = glm::mat4(1.0f);
+  glm::vec3 model_translate_vec = glm::vec3(-tx, -ty, -tz);
+  glm::vec3 model_scale = glm::vec3(config.GetFloat("Model", "ScaleXYZ", 1.0));
+  float model_rotate_angle =
+      glm::radians(config.GetFloat("Model", "RotateAngle", 0.0));
+  glm::vec3 model_rotate_axis =
+      glm::vec3(config.GetFloat("Model", "RotateAxisX", 0.0),
+                config.GetFloat("Model", "RotateAxisY", 0.0),
+                config.GetFloat("Model", "RotateAxisZ", 0.0));
+  model = glm::translate(model, model_translate_vec);
+  model = glm::scale(model, model_scale);
+  model = glm::rotate(model, model_rotate_angle, model_rotate_axis);
 
-  glVertexAttribPointer(vcol_location, 3, GL_FLOAT, GL_FALSE,
-                        sizeof(vertices[0]), (void *)(sizeof(float) * 3));
-  glBindBuffer(GL_ARRAY_BUFFER,0);
-  glUseProgram(0);
-  glBindVertexArray(0);
-  // teapot
-  GLuint TeaPotVAO;
-  glGenVertexArrays(1, &TeaPotVAO);
-  glBindVertexArray(TeaPotVAO);
-  auto teapotshader = DGL::GLShaderBuilder()
-                    .vertex_shader_file("./shadingshaders/teapot_flat.vert")
-                    .fragment_shader_file("./shadingshaders/teapot_flat.frag")
-                    .buildShared();
-  teapotshader->link();
-  teapotshader->use();
+  shader->setMat4("model", model);
 
-  GLint teapot_model_location = teapotshader->getUniformLocation("model");
-  GLint teapot_view_location = teapotshader->getUniformLocation("view");
-  GLint teapot_projection_location = teapotshader->getUniformLocation("projection");
+  setMaterial(config, *shader);
 
-  GLint teapot_vcol_location = 0;
-  GLint teapot_vpos_location = 1;
-  GLint teapot_vnorm_location = 2;
+  // Background color
+  glm::vec3 bg_color =
+      glm::vec3(config.GetFloat("Graphics", "BackgroundColorR", 0.0),
+                config.GetFloat("Graphics", "BackgroundColorG", 0.0),
+                config.GetFloat("Graphics", "BackgroundColorB", 0.0));
 
-  GLuint teapot_vertex_buffer,teapot_element_buffer;
-  glGenBuffers(1, &teapot_vertex_buffer);
-  glBindBuffer(GL_ARRAY_BUFFER, teapot_vertex_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(teapot), teapot, GL_STATIC_DRAW);
-
-  glVertexAttribPointer(teapot_vpos_location, 3, GL_FLOAT, GL_FALSE,
-                        sizeof(teapot[0]), (void *)0);
-
-  glVertexAttribPointer(teapot_vcol_location, 3, GL_FLOAT, GL_FALSE,
-                        sizeof(teapot[0]), (void *)(sizeof(float) * 3));
-
-  glVertexAttribPointer(teapot_vnorm_location, 3, GL_FLOAT, GL_FALSE,
-                        sizeof(teapot[0]), (void *)(sizeof(float) * 6));
-
-  glBindBuffer(GL_ARRAY_BUFFER,0);
-
-  glGenBuffers(1, &teapot_element_buffer);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, teapot_element_buffer);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(teapot_index), teapot_index, GL_STATIC_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  glUseProgram(0);
-  glBindVertexArray(0);
-
-  constexpr float pi = 3.1415926f;
-  glm::vec3 lightPos(100.0f, 100.0f, 0.0f);
+  // Camera
   DGL::Camera camera;
+  camera.setScreenDimensions(window_width, window_height);
+  camera.setCameraDistance(max_length * 2.0f);
+  // Set up input sensitivities
+  float mouse_sensitivity = config.GetFloat("Input", "MouseSensitivity", 0.3);
+  float zoom_sensitivity = config.GetFloat("Input", "ZoomSensitivity", 0.5);
+  float fov_sensitivity = config.GetFloat("Input", "FovSensitivity", 0.4);
+  camera.setSensitivities(mouse_sensitivity, zoom_sensitivity, fov_sensitivity);
+  glfwSetWindowUserPointer(window, &camera);
+
+  float deltaTime, lastFrame = 0.0f;
   while (!glfwWindowShouldClose(window)) {
-    float ratio;
+    // Delta time calculations
+    float currentFrame = glfwGetTime();
+    deltaTime = currentFrame - lastFrame;
+    lastFrame = currentFrame;
+
     int width, height;
 
     glfwGetFramebufferSize(window, &width, &height);
-    ratio = width / (float)height;
-    int t = (int)(2 * glfwGetTime()) % 360;
-    float degree = 0.0f * t * 2 * pi/ 360.0f;
-    float r = 800.0f;
-    float cx = r * cos(degree * 1.0f);
-    float cz = r * sin(degree * 1.0f);
-    glm::mat4 proj = glm::perspective(60.0f * 2 * pi/ 360.0f, ratio,0.0f, 400.0f);
-    camera.build(glm::vec3(cx, 300.f, cz), glm::vec3(0.f, 0.f, 0.f),glm::vec3(0.f, 1.f, 0.f));
-    glm::mat4 view = camera.view_matrix();
-    glm::mat4 mvp = proj * view;
-    glm::mat4 model = glm::mat4(1.0f);
-
     glViewport(0, 0, width, height);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClearColor(bg_color.r, bg_color.g, bg_color.b, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    shader->setMat4("view", camera.getViewMatrix());
+    shader->setMat4("projection", camera.getProjMatrix());
+    shader->setVec3("light.position", camera.getPosition());
+    shader->setVec3("view_pos", camera.getPosition());
     shader->use();
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER,vertex_buffer);
-    glEnableVertexAttribArray(vpos_location);
-    glEnableVertexAttribArray(vcol_location);
-    glUniformMatrix4fv(mvp_location, 1, GL_FALSE, &mvp[0][0]);
-    glDrawArrays(GL_TRIANGLES, 0, 603);
-    glDisableVertexAttribArray(vpos_location);
-    glDisableVertexAttribArray(vcol_location);
-    glBindBuffer(GL_ARRAY_BUFFER,0);
-    glUseProgram(0);
-    glBindVertexArray(0);
 
-    teapotshader->use();
-    // light properties
-    teapotshader->setVec3("light.position", lightPos);
-    teapotshader->setVec3("viewPos", camera.get_eye());
-    glm::vec3 lightColor;
-    lightColor.x = static_cast<float>(sin(/*glfwGetTime()*/ 1.0f * 2.0));
-    lightColor.y = static_cast<float>(sin(/*glfwGetTime()*/ 1.0f * 0.7));
-    lightColor.z = static_cast<float>(sin(/*glfwGetTime()*/ 1.0f * 1.3));
-    glm::vec3 diffuseColor = lightColor   * glm::vec3(0.5f); // decrease the influence
-    glm::vec3 ambientColor = diffuseColor * glm::vec3(0.2f); // low influence
-    teapotshader->setVec3("light.ambient", ambientColor);
-    teapotshader->setVec3("light.diffuse", diffuseColor);
-    teapotshader->setVec3("light.specular", 1.0f, 1.0f, 1.0f);
-
-    // material properties
-    teapotshader->setVec3("material.ambient", 1.0f, 0.5f, 0.31f);
-    teapotshader->setVec3("material.diffuse", 1.0f, 0.5f, 0.31f);
-    teapotshader->setVec3("material.specular", 0.5f, 0.5f, 0.5f); // specular lighting doesn't have full effect on this object's material
-    teapotshader->setFloat("material.shininess", 32.0f);
-
-    glBindVertexArray(TeaPotVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, teapot_vertex_buffer);
-    glUniformMatrix4fv(teapot_model_location, 1, GL_FALSE, &model[0][0]);
-    glUniformMatrix4fv(teapot_view_location, 1, GL_FALSE, &view[0][0]);
-    glUniformMatrix4fv(teapot_projection_location, 1, GL_FALSE, &proj[0][0]);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, teapot_element_buffer);
-    glEnableVertexAttribArray(teapot_vpos_location);
-    glEnableVertexAttribArray(teapot_vcol_location);
-    glEnableVertexAttribArray(teapot_vnorm_location);
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    glDisableVertexAttribArray(teapot_vpos_location);
-    glDisableVertexAttribArray(teapot_vcol_location);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
-    glBindBuffer(GL_ARRAY_BUFFER,0);
-    glUseProgram(0);
-    glBindVertexArray(0);
+    showmodel.draw();
 
     glfwSwapBuffers(window);
     glfwPollEvents();
-  }
 
-  glDeleteVertexArrays(1,&VAO);
-  glDeleteVertexArrays(1,&TeaPotVAO);
-  glDeleteBuffers(1,&vertex_buffer);
-  glDeleteBuffers(1,&teapot_vertex_buffer);
+    process_keypresses(window, deltaTime);
+  }
 
   glfwDestroyWindow(window);
   glfwTerminate();

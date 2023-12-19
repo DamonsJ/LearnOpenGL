@@ -10,7 +10,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/string_cast.hpp>
 
 #include <iostream>
 #include <stdio.h>
@@ -243,8 +242,7 @@ int main(void) {
     float cx = r * cos(degree * 1.0f);
     float cz = r * sin(degree * 1.0f);
     glm::mat4 proj = glm::perspective(60.0f * 2 * pi/ 360.0f, ratio,0.0f, 400.0f);
-    camer.build(glm::vec3(cx, 300.f, cz), glm::vec3(0.f, 0.f, 0.f),glm::vec3(0.f, 1.f, 0.f));
-    glm::mat4 view = camer.view_matrix();
+    glm::mat4 view = glm::lookAt(glm::vec3(cx, 300.f, cz), glm::vec3(0.f, 0.f, 0.f),glm::vec3(0.f, 1.f, 0.f));
     glm::mat4 mvp = proj * view;
 
     glViewport(0, 0, width, height);
