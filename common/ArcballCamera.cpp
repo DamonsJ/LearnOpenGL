@@ -44,6 +44,7 @@ void ArcballCamera::zoom(double y_offset) {
   float l = glm::length(viewdir);
   viewdir = glm::normalize(viewdir);
   m_eye = m_center + viewdir * (l - float(y_offset) * m_zoom_sensitivity);
+  m_last_eye = m_eye;
 }
 void ArcballCamera::pan(float x_offset, float y_offset) {
   glm::vec3 viewdir = m_center - m_eye;
@@ -57,8 +58,7 @@ void ArcballCamera::rotate_end()
   m_last_eye = m_eye;
 }
 void ArcballCamera::rotate(float xpos, float ypos) {
-  // xpos = (xpos - posx) * m_mouse_sensitivity + posx;
-  // ypos = (ypos - posy) * m_mouse_sensitivity + posy;
+  if ( int(xpos) == int(posx) && int(ypos) == int(posy)) return;
 
   xpos = 1.0f * xpos / m_screen_width * 2 - 1.0;
   ypos = -(1.0f * ypos / m_screen_width * 2 - 1.0);
@@ -67,13 +67,10 @@ void ArcballCamera::rotate(float xpos, float ypos) {
   if (len <= 1.0f)
     zpos = sqrt(1.0 - len); // Pythagoras
 
-  glm::vec3 s = glm::normalize(glm::vec3(xpos_start, zpos_start, ypos_start));
-  glm::vec3 t = glm::normalize(glm::vec3(xpos, zpos, ypos));
-  glm::vec3 axis = glm::normalize(glm::cross(s, t));
-  float cosv = glm::dot(s, t);
-  if (cosv > 1.0f)
-    cosv = 1.0f;
-  float theta = acos(cosv);
+  glm::vec3 s = glm::normalize(glm::vec3(xpos_start, ypos_start, zpos_start));
+  glm::vec3 t = glm::normalize(glm::vec3(xpos, ypos, zpos));
+  glm::vec3 axis = glm::normalize(glm::cross(t, s));
+  float theta = acos(std::min(glm::dot(s, t), 1.0f));
 
   glm::vec3 viewdir = m_last_eye - m_center;
   glm::mat4 rot_mat = glm::rotate(glm::mat4(1.0f), theta, axis);
@@ -82,8 +79,6 @@ void ArcballCamera::rotate(float xpos, float ypos) {
   viewdir = glm::normalize(viewdir) * glm::vec3(-1.0);
   glm::vec3 right_vec = glm::normalize(glm::cross(viewdir, m_up));
   m_up = glm::normalize(glm::cross(right_vec, viewdir));
-  printf(" axis : %.3f %.3f %.3f\n", axis[0],axis[1],axis[2]);
-  printf(" m_up : %.3f %.3f %.3f\n", m_up[0],m_up[1],m_up[2]);
 }
 
 void ArcballCamera::rotate_start(float xstart, float ystart) {
