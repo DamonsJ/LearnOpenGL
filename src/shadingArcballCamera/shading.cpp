@@ -267,9 +267,11 @@ int main(void) {
     glClearColor(bg_color.r, bg_color.g, bg_color.b, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    //glm::vec3 lightv = glm::inverse(glm::mat3(camera.getViewMatrix())) * glm::vec3(2.0f, 2.0f,max_length * 2.0f);
+    glm::vec3 lightv =  camera.getPosition();
     shader->setMat4("view", camera.getViewMatrix());
     shader->setMat4("projection", camera.getProjMatrix());
-    shader->setVec3("light.position", camera.getPosition());
+    shader->setVec3("light.position", lightv);
     shader->setVec3("view_pos", camera.getPosition());
     shader->use();
 

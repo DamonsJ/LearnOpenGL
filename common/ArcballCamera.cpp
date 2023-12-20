@@ -71,7 +71,7 @@ void ArcballCamera::rotate(float xpos, float ypos) {
   glm::vec3 t = glm::normalize(glm::vec3(xpos, ypos, zpos));
   glm::vec3 axis = glm::normalize(glm::cross(t, s));
   float theta = acos(std::min(glm::dot(s, t), 1.0f));
-
+  axis = glm::mat3(glm::inverse(getViewMatrix())) * axis;
   glm::vec3 viewdir = m_last_eye - m_center;
   glm::mat4 rot_mat = glm::rotate(glm::mat4(1.0f), theta, axis);
   m_eye = glm::mat3(rot_mat) * viewdir + m_center;
