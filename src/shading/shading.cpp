@@ -6,6 +6,7 @@
 #include "Camera.hpp"
 #include "INIReader.hpp"
 #include "Model.hpp"
+#include "Mesh.hpp"
 #include "linmath.h"
 #include "shader.hpp"
 
@@ -185,7 +186,7 @@ int main(void) {
   printf(" loading model : %s\n", model_path.c_str());
   DGL::Model showmodel(model_path);
   float tx = 0.0f, ty = 0.0f, tz = 0.0f;
-  showmodel.length(tx, ty, tz);
+  showmodel.extend(tx, ty, tz);
   printf(" length x : %.3f y : %.3f z : %.3f \n", tx, ty, tz);
   float max_length = std::max(tx, std::max(ty, tz));
   tx = 0.0f, ty = 0.0f, tz = 0.0f;

@@ -6,6 +6,7 @@
 #include "ArcballCamera.hpp"
 #include "INIReader.hpp"
 #include "Model.hpp"
+#include "Mesh.hpp"
 #include "linmath.h"
 #include "shader.hpp"
 
@@ -16,6 +17,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
+#include <algorithm>
 
 static void error_callback(int error, const char *description) {
   fprintf(stderr, "Error: %s\n", description);
@@ -84,23 +86,6 @@ void scroll_callback(GLFWwindow *window, double x_offset, double y_offset) {
     return;
   camera->zoom(y_offset);
 }
-
-// void process_keypresses(GLFWwindow *window, float delta_time) {
-//   DGL::ArcballCamera *camera =
-//       static_cast<DGL::ArcballCamera *>(glfwGetWindowUserPointer(window));
-//   if (camera == nullptr)
-//     return;
-//   if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-//     glfwSetWindowShouldClose(window, true);
-//   }
-
-//   if (glfwGetKey(window, GLFW_KEY_LEFT_BRACKET) == GLFW_PRESS) {
-//     camera->narrowFov();
-//   }
-//   if (glfwGetKey(window, GLFW_KEY_RIGHT_BRACKET) == GLFW_PRESS) {
-//     camera->widenFov();
-//   }
-// }
 
 void setMaterial(const INIReader &config, const DGL::GLShader &shader) {
   // Set fragment shader uniforms
@@ -211,13 +196,13 @@ int main(void) {
   printf(" loading model : %s\n", model_path.c_str());
   DGL::Model showmodel(model_path);
   float tx = 0.0f, ty = 0.0f, tz = 0.0f;
-  showmodel.length(tx, ty, tz);
-  printf(" length x : %.3f y : %.3f z : %.3f \n", tx, ty, tz);
+  showmodel.extend(tx, ty, tz);
+  printf(" extend x : %.3f y : %.3f z : %.3f \n", tx, ty, tz);
   float max_length = std::max(tx, std::max(ty, tz));
   tx = 0.0f, ty = 0.0f, tz = 0.0f;
   showmodel.center(tx, ty, tz);
   printf(" center x : %.3f y : %.3f z : %.3f \n", tx, ty, tz);
-
+  float xmax = tx + 0.5f * max_length, ymax = ty + 0.5f * max_length, zmax = tz + 0.5f * zmax;
   // Build model matrix
   glm::mat4 model = glm::mat4(1.0f);
   glm::vec3 model_translate_vec = glm::vec3(-tx, -ty, -tz);
@@ -267,7 +252,7 @@ int main(void) {
     glClearColor(bg_color.r, bg_color.g, bg_color.b, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    //glm::vec3 lightv = glm::inverse(glm::mat3(camera.getViewMatrix())) * glm::vec3(2.0f, 2.0f,max_length * 2.0f);
+    // glm::vec3 lightv = glm::mat3(model) * glm::vec3(xmax,ymax,zmax);
     glm::vec3 lightv =  camera.getPosition();
     shader->setMat4("view", camera.getViewMatrix());
     shader->setMat4("projection", camera.getProjMatrix());
