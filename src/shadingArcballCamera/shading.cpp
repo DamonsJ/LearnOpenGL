@@ -202,7 +202,7 @@ int main(void) {
   tx = 0.0f, ty = 0.0f, tz = 0.0f;
   showmodel.center(tx, ty, tz);
   printf(" center x : %.3f y : %.3f z : %.3f \n", tx, ty, tz);
-  float xmax = tx + 0.5f * max_length, ymax = ty + 0.5f * max_length, zmax = tz + 0.5f * zmax;
+  float xmax = tx + 0.5f * max_length, ymax = ty + 0.5f * max_length, zmax = tz + 0.5f * max_length;
   // Build model matrix
   glm::mat4 model = glm::mat4(1.0f);
   glm::vec3 model_translate_vec = glm::vec3(-tx, -ty, -tz);
