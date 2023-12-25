@@ -1,8 +1,8 @@
 #include "Mesh.hpp"
 #define GLAD_GL_IMPLEMENTATION
+#include <assert.h>
 #include <flat_hash_map.h>
 #include <glad/gl.h>
-
 namespace DGL {
 
 Mesh::Mesh() {
@@ -95,10 +95,11 @@ void Mesh::remove_duplicates_vertice() {
   flat_hash_map<uint32_t, uint32_t> pairs;
 
   for (; i < num_vert;) {
-    if ((j + 1) < num_vert && vertice[i] == vertice[j + 1]) {
+    if ((j + 1) < num_vert && !vertice[i].is_deteted &&
+        vertice[i] == vertice[j + 1]) {
       pairs[vertice[j + 1].id] = vertice[i].id;
-      vertice.erase(std::next(vertice.begin(), j + 1));
-      num_vert = vertice.size();
+      vertice[j + 1].is_deteted = true;
+      j++;
     } else {
       i = j + 1;
       j = i;
@@ -110,15 +111,130 @@ void Mesh::remove_duplicates_vertice() {
       elements[i] = pairs[elements[i]];
     }
   }
+  vertice.erase(
+      std::remove_if(vertice.begin(), vertice.end(),
+                     [&](const MeshVertex &v) -> bool { return v.is_deteted; }),
+      vertice.end());
+
   pairs.clear();
   std::size_t reindex = 0;
-  std::for_each(vertice.begin(), vertice.end(),
-                [&](MeshVertex &v) { pairs[v.id] = reindex; v.id = reindex++;
-                });
+  std::for_each(vertice.begin(), vertice.end(), [&](MeshVertex &v) {
+    pairs[v.id] = reindex;
+    v.id = reindex++;
+  });
   for (int i = 0; i < elements.size(); i++) {
     if (pairs.count(elements[i]) != 0) {
       elements[i] = pairs[elements[i]];
     }
+  }
+}
+
+void Mesh::initHalfEdges() {
+  int nbFaces = elements.size() / num_vert_per_face;
+  flat_hash_map<unsigned long, std::vector<uint32_t>> vertex_edge;
+
+  for (std::size_t i = 0; i < nbFaces; i++) {
+    std::size_t cur_edge = halfedges.size();
+    for (std::size_t f = 0; f < num_vert_per_face; f++) {
+      auto vid = elements[i * num_vert_per_face + f];
+      HalfEdge e;
+      e.vertex_id = vid;
+      e.face_id = i;
+      e.next = cur_edge + (f + 1) % num_vert_per_face;
+      e.prev =
+          (f - 1) < 0 ? (cur_edge + num_vert_per_face - 1) : (cur_edge + f - 1);
+      halfedges.push_back(e);
+    }
+  }
+
+  for (uint32_t i = 0; i < halfedges.size(); ++i) {
+    auto &edge = halfedges[i];
+    auto v1 = edge.vertex_id;
+    auto v2 = halfedges[edge.next].vertex_id;
+    unsigned long A = v1 > v2 ? v1 : v2;
+    unsigned long B = v1 > v2 ? v2 : v1;
+    // Szudzik's function hash two integer
+    auto C = (unsigned long)((A >= B ? A * A + A + B : A + B * B));
+    if (vertex_edge.count(C) > 0) {
+      auto count = vertex_edge[C].size();
+      assert(count == 1);
+      auto pair_id = vertex_edge[C].at(0);
+      edge.pair = pair_id;
+      halfedges[pair_id].pair = i;
+      vertex_edge[C].push_back(i);
+    } else
+      vertex_edge[C] = {i};
+  }
+
+  // check
+  int number_disconnected = 0;
+  for (uint32_t i = 0; i < halfedges.size(); ++i) {
+    if (halfedges[i].pair == -1) {
+      number_disconnected++;
+      // printf(" index : %3d , v : %3d , pair : %3d ,prev : %3d, next : %3d
+      // \n", i,halfedges[i].vertex_id, halfedges[i].pair, halfedges[i].prev,
+      // halfedges[i].next);
+    }
+  }
+  printf(" ===> number_disconnected : %3d \n", number_disconnected);
+}
+
+void Mesh::smooth_normals() {
+  flat_hash_map<uint32_t, std::vector<uint32_t>> vertex_faces;
+  for (uint32_t i = 0; i < halfedges.size(); ++i) {
+    auto &edge = halfedges[i];
+    auto v1 = edge.vertex_id;
+    if (vertex_faces.count(v1) > 0) {
+      vertex_faces[v1].push_back(edge.face_id);
+    } else {
+      vertex_faces[v1] = std::vector<uint32_t>{edge.face_id};
+    }
+  }
+  assert(vertex_faces.size() == vertice.size());
+  assert(num_vert_per_face == 3);
+
+  for (auto &item : vertex_faces) {
+    auto &faces = item.second;
+    float area = 0.0f;
+    float lnx = 0.0f;
+    float lny = 0.0f;
+    float lnz = 0.0f;
+
+    for (auto &face : faces) {
+      auto fv0 = elements[num_vert_per_face * face + 0];
+      auto fv1 = elements[num_vert_per_face * face + 1];
+      auto fv2 = elements[num_vert_per_face * face + 2];
+
+      auto &v0 = vertice[fv0];
+      auto &v1 = vertice[fv1];
+      auto &v2 = vertice[fv2];
+
+      float dx0 = v1.x - v0.x;
+      float dy0 = v1.y - v0.y;
+      float dz0 = v1.z - v0.z;
+
+      float dx1 = v2.x - v0.x;
+      float dy1 = v2.y - v0.y;
+      float dz1 = v2.z - v0.z;
+
+      float nx = dy0 * dz1 - dy1 * dz0;
+      float ny = dx1 * dz0 - dx0 * dz1;
+      float nz = dx0 * dy1 - dx1 * dy0;
+
+      lnx += nx;
+      lny += ny;
+      lnz += nz;
+
+      float l = sqrt(nx * nx + ny * ny + nz * nz);
+      area += l;
+    }
+    lnx /= area;
+    lny /= area;
+    lnz /= area;
+
+    vertice[item.first].nx = lnx;
+    vertice[item.first].ny = lny;
+    vertice[item.first].nz = lnz;
   }
 }
 
@@ -128,6 +244,8 @@ void Mesh::build() {
   remove_duplicates_vertice();
   printf(" ===> after remove vertex number = %zu facets : %zu \n",
          vertice.size(), elements.size() / num_vert_per_face);
+  initHalfEdges();
+  smooth_normals();
   initGL();
 }
 void Mesh::draw() {
