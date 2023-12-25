@@ -75,8 +75,18 @@ public:
   float x, y, z;
   float nx, ny, nz;
   unsigned int id;
+  bool is_deteted =false;
 };
 
+class HalfEdge
+{
+public:
+  uint32_t vertex_id = 0;
+  uint32_t face_id  = 0;
+  int32_t pair  = -1;
+  uint32_t prev  = 0;
+  uint32_t next  = 0;
+};
 class Mesh {
 public:
   Mesh();
@@ -127,7 +137,8 @@ public:
 private:
   void initGL();
   void remove_duplicates_vertice();
-
+  void initHalfEdges();
+  void smooth_normals();
 private:
   std::vector<MeshVertex> vertice;
   std::vector<unsigned int> elements;
@@ -135,6 +146,8 @@ private:
 
   float xmin, xmax, ymin, ymax, zmin, zmax;
   unsigned int vao = 0, vbo = 0, ibo = 0;
+
+  std::vector<HalfEdge> halfedges;
 };
 
 } // namespace DGL

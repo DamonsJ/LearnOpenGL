@@ -202,7 +202,7 @@ int main(void) {
   tx = 0.0f, ty = 0.0f, tz = 0.0f;
   showmodel.center(tx, ty, tz);
   printf(" center x : %.3f y : %.3f z : %.3f \n", tx, ty, tz);
-  float xmax = tx + 0.5f * max_length, ymax = ty + 0.5f * max_length, zmax = tz + 0.5f * zmax;
+  float xmax = tx + 0.5f * max_length, ymax = ty + 0.5f * max_length, zmax = tz + 0.5f * max_length;
   // Build model matrix
   glm::mat4 model = glm::mat4(1.0f);
   glm::vec3 model_translate_vec = glm::vec3(-tx, -ty, -tz);
@@ -252,7 +252,12 @@ int main(void) {
     glClearColor(bg_color.r, bg_color.g, bg_color.b, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // glm::vec3 lightv = glm::mat3(model) * glm::vec3(xmax,ymax,zmax);
+    float theta = 50.0f * (currentFrame - int(currentFrame / 360.0f) * 360);
+    float lx = max_length * 0.5f * cos(glm::radians(theta)) + tx;
+    float ly = ymax;
+    float lz = max_length * 0.5f * sin(glm::radians(theta)) + tz;
+    //glm::vec3 lightv = glm::vec3( model * glm::vec4(lx,ly,lz,1.0f));
+    //glm::vec3 lightv2 = glm::vec3(glm::inverse(camera.getViewMatrix()) * model * glm::vec4(xmax,ymax,zmax,1.0f));
     glm::vec3 lightv =  camera.getPosition();
     shader->setMat4("view", camera.getViewMatrix());
     shader->setMat4("projection", camera.getProjMatrix());

@@ -1,8 +1,5 @@
 #include "Model.hpp"
 #include "Mesh.hpp"
-#include "assimp/Importer.hpp"
-#include "assimp/postprocess.h"
-#include "assimp/scene.h"
 #define GLAD_GL_IMPLEMENTATION
 #include <glad/gl.h>
 

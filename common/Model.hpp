@@ -4,14 +4,14 @@
 #include <iostream>
 #include <vector>
 
+#include "assimp/Importer.hpp"
+#include "assimp/postprocess.h"
+#include "assimp/scene.h"
+
 /**
  * @brief Model
  *
  */
-
-class aiNode;
-class aiScene;
-class aiMesh;
 
 namespace DGL {
 class Mesh;
