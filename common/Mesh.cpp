@@ -131,7 +131,7 @@ void Mesh::remove_duplicates_vertice() {
 
 void Mesh::initHalfEdges() {
   int nbFaces = elements.size() / num_vert_per_face;
-  flat_hash_map<unsigned long, std::vector<uint32_t>> vertex_edge;
+  flat_hash_map<uint64_t, std::vector<uint32_t>> vertex_edge;
 
   for (std::size_t i = 0; i < nbFaces; i++) {
     std::size_t cur_edge = halfedges.size();
@@ -151,10 +151,10 @@ void Mesh::initHalfEdges() {
     auto &edge = halfedges[i];
     auto v1 = edge.vertex_id;
     auto v2 = halfedges[edge.next].vertex_id;
-    unsigned long A = v1 > v2 ? v1 : v2;
-    unsigned long B = v1 > v2 ? v2 : v1;
+    uint64_t A = v1 > v2 ? v1 : v2;
+    uint64_t B = v1 > v2 ? v2 : v1;
     // Szudzik's function hash two integer
-    auto C = (unsigned long)((A >= B ? A * A + A + B : A + B * B));
+    auto C = (uint64_t)((A >= B ? A * A + A + B : A + B * B));
     if (vertex_edge.count(C) > 0) {
       auto count = vertex_edge[C].size();
       assert(count == 1);
