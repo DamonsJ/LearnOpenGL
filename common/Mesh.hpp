@@ -57,18 +57,7 @@ public:
   }
 
   bool operator<(const MeshVertex &v) const {
-
-    if (float_equal(x, v.x)) {
-      if (float_equal(y, v.y))
-        return z < v.z;
-      else if (y < v.y) {
-        return true;
-      } else
-        return false;
-    } else if (x < v.x)
-      return true;
-    else
-      return false;
+       return (z != v.z) ? (z < v.z) : (y != v.y) ? (y < v.y) :(x < v.x);
   }
 
 public:
